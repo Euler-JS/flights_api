@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Usuários - FlightsMND</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/users.css">
+</head>
+<body>
+    <div class="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+        <!-- Navigation Header -->
+        <nav class="bg-white shadow-lg border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-8">
+                        <h1 class="text-2xl font-bold text-gray-900">FlightsMND Admin</h1>
+                        <div class="flex space-x-6">
+                            <a href="index.html" class="nav-link">
+                                <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                                <span>Dashboard</span>
+                            </a>
+                            <a href="users.html" class="nav-link active">
+                                <i data-lucide="users" class="w-5 h-5"></i>
+                                <span>Usuários</span>
+                            </a>
+                            <a href="#" class="nav-link">
+                                <i data-lucide="plane" class="w-5 h-5"></i>
+                                <span>Reservas</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <i data-lucide="bell" class="w-6 h-6 text-gray-600 cursor-pointer"></i>
+                            <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            <i data-lucide="calendar" class="w-4 h-4 inline mr-1"></i>
+                            <span id="currentDate"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto p-6">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-4xl font-bold text-gray-900 mb-2">Gestão de Usuários</h2>
+                        <p class="text-gray-600 text-lg">
+                            Monitoramento e suporte aos clientes da plataforma
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button class="btn btn-secondary" onclick="exportUsers()">
+                            <i data-lucide="download" class="w-5 h-5 mr-2"></i>
+                            Exportar
+                        </button>
+                        <button class="btn btn-primary" onclick="showAddUserModal()">
+                            <i data-lucide="user-plus" class="w-5 h-5 mr-2"></i>
+                            Novo Usuário
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="text-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p class="text-gray-600">Carregando dados dos usuários...</p>
+            </div>
+
+            <!-- Main Content -->
+            <div id="usersContent" class="hidden">
+                <!-- User Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600">
+                                <i data-lucide="users" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge bg-green-100 text-green-700">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>12.5%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Usuários Ativos</h3>
+                        <p id="activeUsers" class="text-3xl font-bold text-gray-900">0</p>
+                        <p class="text-xs text-gray-500 mt-1">últimos 30 dias</p>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600">
+                                <i data-lucide="user-plus" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge bg-green-100 text-green-700">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>8.3%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Novos Registros</h3>
+                        <p id="newUsers" class="text-3xl font-bold text-gray-900">0</p>
+                        <p class="text-xs text-gray-500 mt-1">esta semana</p>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-red-500 to-pink-600">
+                                <i data-lucide="alert-circle" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge bg-red-100 text-red-700">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>2.1%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Tickets Abertos</h3>
+                        <p id="openTickets" class="text-3xl font-bold text-gray-900">0</p>
+                        <p class="text-xs text-gray-500 mt-1">suporte pendente</p>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600">
+                                <i data-lucide="credit-card" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge bg-red-100 text-red-700">
+                                <i data-lucide="trending-down" class="w-4 h-4 inline mr-1"></i>
+                                <span>3.2%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Problemas Pagamento</h3>
+                        <p id="paymentIssues" class="text-3xl font-bold text-gray-900">0</p>
+                        <p class="text-xs text-gray-500 mt-1">requer atenção</p>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-1 gap-8 mb-8">
+                    <!-- User Growth Chart -->
+                    <!-- <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Crescimento de Usuários (30 dias)</h3>
+                        <canvas id="userGrowthChart" width="400" height="200"></canvas>
+                    </div> -->
+
+                    <!-- Top Customers -->
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Top 5 Clientes</h3>
+                        <div id="topCustomers" class="space-y-4">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Table Section -->
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-100">
+                    <div class="p-6 border-b border-gray-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold text-gray-900">Lista de Usuários</h3>
+                            <div class="flex items-center space-x-4">
+                                <div class="relative">
+                                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                                    <input 
+                                        type="text" 
+                                        id="searchUsers" 
+                                        placeholder="Buscar usuários..."
+                                        class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    >
+                                </div>
+                                <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="all">Todos</option>
+                                    <option value="active">Ativos</option>
+                                    <option value="inactive">Inativos</option>
+                                    <option value="payment_issues">Problemas de Pagamento</option>
+                                    <option value="support_pending">Suporte Pendente</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <input type="checkbox" id="selectAll" class="rounded border-gray-300">
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable('name')">
+                                        Nome
+                                        <i data-lucide="chevron-up-down" class="w-4 h-4 inline ml-1"></i>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable('email')">
+                                        Email
+                                        <i data-lucide="chevron-up-down" class="w-4 h-4 inline ml-1"></i>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable('bookings')">
+                                        Reservas
+                                        <i data-lucide="chevron-up-down" class="w-4 h-4 inline ml-1"></i>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable('totalSpent')">
+                                        Total Gasto
+                                        <i data-lucide="chevron-up-down" class="w-4 h-4 inline ml-1"></i>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortTable('lastActivity')">
+                                        Última Atividade
+                                        <i data-lucide="chevron-up-down" class="w-4 h-4 inline ml-1"></i>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody" class="bg-white divide-y divide-gray-200">
+                                <!-- Will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="px-6 py-4 border-t border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-gray-500">
+                                Mostrando <span id="showingFrom">1</span> a <span id="showingTo">10</span> de <span id="totalUsers">0</span> usuários
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button id="prevPage" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50" disabled>
+                                    Anterior
+                                </button>
+                                <div id="pageNumbers" class="flex space-x-1">
+                                    <!-- Page numbers will be generated here -->
+                                </div>
+                                <button id="nextPage" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    Próximo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Detail Modal -->
+    <div id="userDetailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl max-w-4xl w-full max-h-screen overflow-y-auto">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-2xl font-bold text-gray-900">Detalhes do Usuário</h3>
+                        <button onclick="closeUserDetailModal()" class="text-gray-400 hover:text-gray-600">
+                            <i data-lucide="x" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="userDetailContent" class="p-6">
+                    <!-- User details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support Ticket Modal -->
+    <div id="supportTicketModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl max-w-2xl w-full">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-2xl font-bold text-gray-900">Ticket de Suporte</h3>
+                        <button onclick="closeSupportTicketModal()" class="text-gray-400 hover:text-gray-600">
+                            <i data-lucide="x" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="supportTicketContent" class="p-6">
+                    <!-- Support ticket details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- <script src="js/dashboard.js"></script> -->
+    <script src="js/users.js"></script>
+    <script>
+        // Initialize Lucide icons
+        // lucide.createIcons();
+    </script>
+</body>
+</html>

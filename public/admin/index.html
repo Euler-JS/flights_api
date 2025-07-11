@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - FlightsMND</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
+    <link rel="stylesheet" href="css/dashboard.css">
+</head>
+<body>
+    <div class="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 p-6">
+        <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+             <nav class="bg-white shadow-lg border-b border-gray-200">
+    <div class="max-w-7xl mx-auto px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-8">
+                <h1 class="text-2xl font-bold text-gray-900">FlightsMND Admin</h1>
+                <div class="flex space-x-6">
+                    <a href="index.html" class="nav-link active">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a href="users.html" class="nav-link">
+                        <i data-lucide="users" class="w-5 h-5"></i>
+                        <span>Usuários</span>
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i data-lucide="plane" class="w-5 h-5"></i>
+                        <span>Reservas</span>
+                    </a>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <i data-lucide="bell" class="w-6 h-6 text-gray-600 cursor-pointer"></i>
+                    <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+                </div>
+                <div class="text-sm text-gray-600">
+                    <i data-lucide="calendar" class="w-4 h-4 inline mr-1"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+            <div class="mb-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-4xl font-bold text-gray-900 mb-2">
+                            Dashboard Admin
+                        </h1>
+                        <p class="text-gray-600 text-lg">
+                            FlightsMND - Métricas Financeiras & Negócio
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <select id="periodSelect" class="px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm">
+                            <option value="7d">Últimos 7 dias</option>
+                            <option value="30d" selected>Últimos 30 dias</option>
+                            <option value="90d">Últimos 90 dias</option>
+                        </select>
+                        <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
+                            <i data-lucide="calendar" class="w-5 h-5 text-gray-500 inline mr-2"></i>
+                            <span id="currentDate"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="text-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p class="text-gray-600">Carregando métricas...</p>
+            </div>
+
+            <!-- Dashboard Content -->
+            <div id="dashboardContent" class="hidden">
+                <!-- Métricas Principais -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="metric-card bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-gray-200 transform hover:-translate-y-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600">
+                                <i data-lucide="dollar-sign" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div id="dailyGrowth" class="growth-badge px-3 py-1 rounded-full text-sm font-medium">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>8.5%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Receita Hoje</h3>
+                        <p id="dailyRevenue" class="text-3xl font-bold text-gray-900">0 MT</p>
+                    </div>
+
+                    <div class="metric-card bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-gray-200 transform hover:-translate-y-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600">
+                                <i data-lucide="trending-up" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div id="monthlyGrowth" class="growth-badge px-3 py-1 rounded-full text-sm font-medium">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>12.3%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Receita Mensal</h3>
+                        <p id="monthlyRevenue" class="text-3xl font-bold text-gray-900">0 MT</p>
+                    </div>
+
+                    <div class="metric-card bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-gray-200 transform hover:-translate-y-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600">
+                                <i data-lucide="plane" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div id="bookingsGrowth" class="growth-badge px-3 py-1 rounded-full text-sm font-medium">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>8.2%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Reservas Hoje</h3>
+                        <p id="todayBookings" class="text-3xl font-bold text-gray-900">0</p>
+                    </div>
+
+                    <div class="metric-card bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-gray-200 transform hover:-translate-y-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600">
+                                <i data-lucide="credit-card" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div id="ticketGrowth" class="growth-badge px-3 py-1 rounded-full text-sm font-medium">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>5.2%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Ticket Médio</h3>
+                        <p id="avgTicket" class="text-3xl font-bold text-gray-900">0 MT</p>
+                    </div>
+                </div>
+
+                <!-- Métricas Secundárias -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="metric-card bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-gray-200 transform hover:-translate-y-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600">
+                                <i data-lucide="dollar-sign" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>24.7%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Receita Anual</h3>
+                        <p id="annualRevenue" class="text-3xl font-bold text-gray-900">18.500.000 MT</p>
+                    </div>
+
+                    <div class="metric-card bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-gray-200 transform hover:-translate-y-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-600">
+                                <i data-lucide="target" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>2.1%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Taxa de Conversão</h3>
+                        <p id="conversionRate" class="text-3xl font-bold text-gray-900">3.8%</p>
+                    </div>
+
+                    <div class="metric-card bg-white rounded-2xl p-6 shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-gray-200 transform hover:-translate-y-1">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600">
+                                <i data-lucide="users" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>15.8%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Comissões Totais</h3>
+                        <p id="totalCommissions" class="text-3xl font-bold text-gray-900">89.000 MT</p>
+                    </div>
+                </div>
+
+                <!-- Gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <!-- Receita e Reservas -->
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Receita & Reservas (14 dias)</h3>
+                        <canvas id="revenueChart" width="400" height="200"></canvas>
+                    </div>
+
+                    <!-- Comissões por Companhia -->
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Comissões por Companhia Aérea</h3>
+                        <canvas id="commissionsChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Resumo de Reservas -->
+                <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                    <h3 class="text-xl font-bold text-gray-900 mb-6">Resumo de Reservas</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="text-center p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl">
+                            <h4 class="text-sm font-medium text-gray-600 mb-2">Hoje</h4>
+                            <p id="summaryToday" class="text-3xl font-bold text-blue-600">59</p>
+                            <p class="text-sm text-gray-500 mt-1">reservas confirmadas</p>
+                        </div>
+                        <div class="text-center p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl">
+                            <h4 class="text-sm font-medium text-gray-600 mb-2">Esta Semana</h4>
+                            <p id="summaryWeek" class="text-3xl font-bold text-green-600">312</p>
+                            <p class="text-sm text-gray-500 mt-1">reservas confirmadas</p>
+                        </div>
+                        <div class="text-center p-4 bg-gradient-to-r from-purple-50 to-violet-50 rounded-xl">
+                            <h4 class="text-sm font-medium text-gray-600 mb-2">Este Mês</h4>
+                            <p id="summaryMonth" class="text-3xl font-bold text-purple-600">1247</p>
+                            <p class="text-sm text-gray-500 mt-1">reservas confirmadas</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+    <script>
+        // Inicializar ícones Lucide
+        lucide.createIcons();
+    </script>
+</body>
+</html>
