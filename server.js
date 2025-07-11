@@ -18,8 +18,8 @@ app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 // ====================================
 
 const amadeus = new Amadeus({
-    clientId: 'gn0FtKiB4IeHMMRZQfJAw7A8fn8IBr9t',
-    clientSecret: 'e8OF4DatS15dEccn',
+    clientId: process.env.AMADEUS_CLIENT_ID,
+    clientSecret: process.env.AMADEUS_CLIENT_SECRET,
     hostname: process.env.NODE_ENV === 'production' 
         ? 'production' 
         : 'test' // Ambiente de teste
@@ -31,8 +31,16 @@ const amadeus = new Amadeus({
 console.log('Inicializando middlewares...', process.env.FRONTEND_URL); ;
 app.use(helmet());
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'https://flights-mnd.vercel.app',
-    credentials: true
+     origin: [
+        'https://flights-mnd.vercel.app',
+        process.env.FRONTEND_URL,
+        // Para desenvolvimento local (se necessário)
+        'http://localhost:3000',
+        'http://localhost:3001'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -48,11 +56,67 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', 'https://flights-mnd.vercel.app');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+    } else {
+        next();
+    }
+});
+
 // Rate limiting
 const rateLimiter = new rateLimit.RateLimiterMemory({
     keyPrefix: 'flight_search',
-    points: 50, // 50 requests
+    points: 100, // 50 requests
     duration: 3600, // per hour
+});
+
+app.get('/api/health', async (req, res) => {
+    try {
+        // Teste básico da API Amadeus
+        const testResponse = await amadeus.referenceData.locations.get({
+            keyword: 'LIS',
+            subType: Amadeus.location.airport
+        });
+
+        res.json({
+            success: true,
+            message: 'Backend online e conectado à Amadeus',
+            amadeus: {
+                connected: true,
+                environment: process.env.NODE_ENV === 'production' ? 'production' : 'test',
+                testResults: testResponse.data.length + ' aeroportos encontrados'
+            },
+            frontend: process.env.FRONTEND_URL,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('❌ Erro no health check:', error.code || error.message);
+        
+        res.status(500).json({
+            success: false,
+            message: 'Erro na conexão com Amadeus',
+            error: {
+                code: error.code,
+                message: error.message,
+                description: error.code === 'AuthenticationError' 
+                    ? 'Verifique as credenciais Amadeus no Vercel'
+                    : 'Erro de conexão'
+            },
+            amadeus: {
+                connected: false,
+                environment: process.env.NODE_ENV === 'production' ? 'production' : 'test',
+                clientId: process.env.AMADEUS_CLIENT_ID?.substring(0, 8) + '...'
+            },
+            timestamp: new Date().toISOString()
+        });
+    }
 });
 
 app.get('/admin', (req, res) => {
