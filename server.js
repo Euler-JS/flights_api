@@ -18,8 +18,8 @@ app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 // ====================================
 
 const amadeus = new Amadeus({
-    clientId: process.env.AMADEUS_CLIENT_ID,
-    clientSecret: process.env.AMADEUS_CLIENT_SECRET,
+    clientId: 'gn0FtKiB4IeHMMRZQfJAw7A8fn8IBr9t',
+    clientSecret: 'e8OF4DatS15dEccn',
     hostname: process.env.NODE_ENV === 'production' 
         ? 'production' 
         : 'test' // Ambiente de teste
