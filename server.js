@@ -35,6 +35,18 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', 
+    "default-src 'self'; " +
+     "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://unpkg.com; " +
+    "style-src 'self' 'unsafe-inline'; " +
+    "font-src 'self' https:; " +
+    "img-src 'self' data: https:;"
+  );
+  next();
+});
 
 // Rate limiting
 const rateLimiter = new rateLimit.RateLimiterMemory({
@@ -51,6 +63,9 @@ app.get('/admin/users', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/admin/users.html'));
 });
 
+app.get('/admin/reservations', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/admin/reservations.html'));
+});
 // ====================================
 // ROTAS DA API
 // ====================================
@@ -330,6 +345,7 @@ app.get('/api/admin/airlines-commissions', async (req, res) => {
         });
     }
 });
+
 
 // ====================================
 // FUNÇÕES AUXILIARES PARA DASHBOARD
@@ -1310,6 +1326,842 @@ function formatItinerary(itinerary) {
     };
 }
 
+
+// ====================================
+// APIS PARA GESTÃO DE RESERVAS
+// ====================================
+
+// API: Métricas de reservas
+app.get('/api/admin/reservations-metrics', async (req, res) => {
+    try {
+        const { period = '30d' } = req.query;
+        
+        const metrics = await getReservationsMetrics(period);
+        
+        res.json({
+            success: true,
+            data: metrics,
+            period: period,
+            lastUpdated: new Date().toISOString()
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar métricas de reservas:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar métricas de reservas'
+        });
+    }
+});
+
+// API: Lista de reservas com filtros e paginação
+app.get('/api/admin/reservations', async (req, res) => {
+    try {
+        const { 
+            page = 1, 
+            limit = 10, 
+            search = '', 
+            status = 'all',
+            period = 'all',
+            sortBy = 'bookingDate',
+            sortOrder = 'desc' 
+        } = req.query;
+        
+        const result = await getReservations({
+            page: parseInt(page),
+            limit: parseInt(limit),
+            search,
+            status,
+            period,
+            sortBy,
+            sortOrder
+        });
+        
+        res.json({
+            success: true,
+            data: result.reservations,
+            pagination: {
+                currentPage: parseInt(page),
+                totalPages: Math.ceil(result.total / limit),
+                totalReservations: result.total,
+                reservationsPerPage: parseInt(limit)
+            }
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar reservas:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar reservas'
+        });
+    }
+});
+
+// API: Detalhes de uma reserva específica
+app.get('/api/admin/reservations/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const reservation = await getReservationById(id);
+        
+        if (!reservation) {
+            return res.status(404).json({
+                error: 'Reserva não encontrada'
+            });
+        }
+        
+        res.json({
+            success: true,
+            data: reservation
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar reserva:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar reserva'
+        });
+    }
+});
+
+// API: Atualizar reserva
+app.put('/api/admin/reservations/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+        
+        const updatedReservation = await updateReservation(id, updateData);
+        
+        res.json({
+            success: true,
+            data: updatedReservation,
+            message: 'Reserva atualizada com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao atualizar reserva:', error);
+        res.status(500).json({
+            error: 'Erro ao atualizar reserva'
+        });
+    }
+});
+
+// API: Criar nova reserva
+app.post('/api/admin/reservations', async (req, res) => {
+    try {
+        const reservationData = req.body;
+        
+        // Validações básicas
+        if (!reservationData.passenger || !reservationData.flightNumber) {
+            return res.status(400).json({
+                error: 'Dados do passageiro e voo são obrigatórios'
+            });
+        }
+        
+        const newReservation = await createReservation(reservationData);
+        
+        res.status(201).json({
+            success: true,
+            data: newReservation,
+            message: 'Reserva criada com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao criar reserva:', error);
+        res.status(500).json({
+            error: 'Erro ao criar reserva'
+        });
+    }
+});
+
+// API: Cancelar reserva
+app.patch('/api/admin/reservations/:id/cancel', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { reason, refundAmount } = req.body;
+        
+        const cancelledReservation = await cancelReservation(id, reason, refundAmount);
+        
+        res.json({
+            success: true,
+            data: cancelledReservation,
+            message: 'Reserva cancelada com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao cancelar reserva:', error);
+        res.status(500).json({
+            error: 'Erro ao cancelar reserva'
+        });
+    }
+});
+
+// API: Processar pagamento
+app.post('/api/admin/reservations/:id/payment', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { paymentMethod, amount, notes } = req.body;
+        
+        if (!paymentMethod || !amount) {
+            return res.status(400).json({
+                error: 'Método de pagamento e valor são obrigatórios'
+            });
+        }
+        
+        const paymentResult = await processReservationPayment(id, {
+            paymentMethod,
+            amount: parseFloat(amount),
+            notes,
+            processedBy: 'admin', // Em produção, usar ID do admin logado
+            processedAt: new Date()
+        });
+        
+        res.json({
+            success: true,
+            data: paymentResult,
+            message: 'Pagamento processado com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao processar pagamento:', error);
+        res.status(500).json({
+            error: 'Erro ao processar pagamento'
+        });
+    }
+});
+
+// API: Status do voo para uma reserva
+app.get('/api/admin/reservations/:id/flight-status', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const reservation = await getReservationById(id);
+        
+        if (!reservation) {
+            return res.status(404).json({
+                error: 'Reserva não encontrada'
+            });
+        }
+        
+        // Usar API Amadeus para buscar status do voo
+        const flightStatus = await getFlightStatus(
+            reservation.flightNumber, 
+            reservation.departureDate
+        );
+        
+        res.json({
+            success: true,
+            data: flightStatus
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar status do voo:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar status do voo'
+        });
+    }
+});
+
+// API: Enviar email de confirmação
+app.post('/api/admin/reservations/:id/send-confirmation', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const emailResult = await sendConfirmationEmail(id);
+        
+        res.json({
+            success: true,
+            data: emailResult,
+            message: 'Email de confirmação enviado com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao enviar email:', error);
+        res.status(500).json({
+            error: 'Erro ao enviar email de confirmação'
+        });
+    }
+});
+
+// API: Rotas mais populares
+app.get('/api/admin/popular-routes', async (req, res) => {
+    try {
+        const { period = '30d', limit = 10 } = req.query;
+        
+        const popularRoutes = await getPopularRoutes(period, parseInt(limit));
+        
+        res.json({
+            success: true,
+            data: popularRoutes
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar rotas populares:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar rotas populares'
+        });
+    }
+});
+
+// API: Estatísticas por companhia aérea
+app.get('/api/admin/airlines-stats', async (req, res) => {
+    try {
+        const { period = '30d' } = req.query;
+        
+        const airlinesStats = await getAirlinesStats(period);
+        
+        res.json({
+            success: true,
+            data: airlinesStats
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar estatísticas de companhias:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar estatísticas de companhias'
+        });
+    }
+});
+
+// API: Alertas de voos
+app.get('/api/admin/flight-alerts', async (req, res) => {
+    try {
+        const alerts = await getFlightAlerts();
+        
+        res.json({
+            success: true,
+            data: alerts
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar alertas de voos:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar alertas de voos'
+        });
+    }
+});
+
+// API: Reembolsos pendentes
+app.get('/api/admin/pending-refunds', async (req, res) => {
+    try {
+        const { limit = 10 } = req.query;
+        
+        const pendingRefunds = await getPendingRefunds(parseInt(limit));
+        
+        res.json({
+            success: true,
+            data: pendingRefunds
+        });
+
+    } catch (error) {
+        console.error('Erro ao buscar reembolsos pendentes:', error);
+        res.status(500).json({
+            error: 'Erro ao buscar reembolsos pendentes'
+        });
+    }
+});
+
+// API: Processar reembolso
+app.post('/api/admin/reservations/:id/refund', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { amount, reason, method } = req.body;
+        
+        if (!amount || !reason) {
+            return res.status(400).json({
+                error: 'Valor e motivo do reembolso são obrigatórios'
+            });
+        }
+        
+        const refundResult = await processRefund(id, {
+            amount: parseFloat(amount),
+            reason,
+            method: method || 'original_payment',
+            processedBy: 'admin', // Em produção, usar ID do admin logado
+            processedAt: new Date()
+        });
+        
+        res.json({
+            success: true,
+            data: refundResult,
+            message: 'Reembolso processado com sucesso'
+        });
+
+    } catch (error) {
+        console.error('Erro ao processar reembolso:', error);
+        res.status(500).json({
+            error: 'Erro ao processar reembolso'
+        });
+    }
+});
+
+// API: Exportar reservas
+app.get('/api/admin/reservations/export', async (req, res) => {
+    try {
+        const { format = 'csv', status = 'all', period = 'all' } = req.query;
+        
+        const reservationsData = await getAllReservationsForExport({ status, period });
+        
+        if (format === 'csv') {
+            const csv = convertReservationsToCSV(reservationsData);
+            
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', 'attachment; filename=reservas.csv');
+            res.send(csv);
+        } else {
+            res.json({
+                success: true,
+                data: reservationsData
+            });
+        }
+
+    } catch (error) {
+        console.error('Erro ao exportar reservas:', error);
+        res.status(500).json({
+            error: 'Erro ao exportar reservas'
+        });
+    }
+});
+
+// API: Atualizar status de múltiplos voos
+app.post('/api/admin/refresh-flight-status', async (req, res) => {
+    try {
+        const { flightNumbers } = req.body;
+        
+        const results = await refreshMultipleFlightStatus(flightNumbers);
+        
+        res.json({
+            success: true,
+            data: results,
+            message: 'Status dos voos atualizados'
+        });
+
+    } catch (error) {
+        console.error('Erro ao atualizar status dos voos:', error);
+        res.status(500).json({
+            error: 'Erro ao atualizar status dos voos'
+        });
+    }
+});
+
+// ====================================
+// FUNÇÕES AUXILIARES PARA RESERVAS
+// ====================================
+
+async function getReservationsMetrics(period) {
+    // DADOS FICTÍCIOS - Substituir por consultas reais ao banco
+    
+    return {
+        todayReservations: 59,
+        todayGrowth: 15.2,
+        pendingPayments: 12,
+        pendingGrowth: 8.7,
+        cancellations: 8,
+        cancellationsGrowth: -2.1,
+        reservationsRevenue: 1250000,
+        revenueGrowth: 12.5
+    };
+}
+
+async function getReservations(filters) {
+    // DADOS FICTÍCIOS - Substituir por consultas reais ao banco
+    
+    // Simular busca com filtros
+    const mockReservations = generateMockReservationsData();
+    
+    let filteredReservations = mockReservations;
+    
+    // Aplicar filtros
+    if (filters.search) {
+        filteredReservations = filteredReservations.filter(reservation => 
+            reservation.bookingCode.toLowerCase().includes(filters.search.toLowerCase()) ||
+            reservation.passenger.toLowerCase().includes(filters.search.toLowerCase()) ||
+            reservation.flightNumber.toLowerCase().includes(filters.search.toLowerCase())
+        );
+    }
+    
+    if (filters.status !== 'all') {
+        filteredReservations = filteredReservations.filter(reservation => 
+            reservation.status === filters.status
+        );
+    }
+    
+    if (filters.period !== 'all') {
+        const now = new Date();
+        let startDate;
+        
+        switch (filters.period) {
+            case 'today':
+                startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                break;
+            case 'week':
+                startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case 'month':
+                startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                break;
+        }
+        
+        if (startDate) {
+            filteredReservations = filteredReservations.filter(reservation => 
+                new Date(reservation.bookingDate) >= startDate
+            );
+        }
+    }
+    
+    // Aplicar ordenação
+    filteredReservations.sort((a, b) => {
+        let aValue = a[filters.sortBy];
+        let bValue = b[filters.sortBy];
+        
+        if (filters.sortBy === 'departureDate' || filters.sortBy === 'bookingDate') {
+            aValue = new Date(aValue);
+            bValue = new Date(bValue);
+        }
+        
+        if (typeof aValue === 'string') {
+            aValue = aValue.toLowerCase();
+            bValue = bValue.toLowerCase();
+        }
+        
+        if (filters.sortOrder === 'desc') {
+            return bValue > aValue ? 1 : -1;
+        }
+        return aValue > bValue ? 1 : -1;
+    });
+    
+    // Aplicar paginação
+    const startIndex = (filters.page - 1) * filters.limit;
+    const paginatedReservations = filteredReservations.slice(startIndex, startIndex + filters.limit);
+    
+    return {
+        reservations: paginatedReservations,
+        total: filteredReservations.length
+    };
+}
+
+async function getReservationById(id) {
+    // DADOS FICTÍCIOS - Substituir por consulta real ao banco
+    
+    const mockReservations = generateMockReservationsData();
+    return mockReservations.find(reservation => reservation.id === parseInt(id));
+}
+
+async function updateReservation(id, updateData) {
+    // IMPLEMENTAR: Atualizar reserva no banco de dados
+    
+    console.log(`Atualizando reserva ${id}:`, updateData);
+    
+    // Simular resposta
+    return {
+        id: parseInt(id),
+        ...updateData,
+        updatedAt: new Date().toISOString()
+    };
+}
+
+async function createReservation(reservationData) {
+    // IMPLEMENTAR: Criar reserva no banco de dados
+    
+    console.log('Criando nova reserva:', reservationData);
+    
+    // Simular resposta
+    return {
+        id: Math.floor(Math.random() * 10000),
+        bookingCode: 'MND' + Math.floor(Math.random() * 9000 + 1000),
+        ...reservationData,
+        status: 'pending',
+        createdAt: new Date().toISOString()
+    };
+}
+
+async function cancelReservation(id, reason, refundAmount) {
+    // IMPLEMENTAR: Cancelar reserva no banco de dados
+    
+    console.log(`Cancelando reserva ${id}:`, { reason, refundAmount });
+    
+    // Simular resposta
+    return {
+        id: parseInt(id),
+        status: 'cancelled',
+        cancellationReason: reason,
+        refundAmount: refundAmount,
+        cancelledAt: new Date().toISOString()
+    };
+}
+
+async function processReservationPayment(id, paymentData) {
+    // IMPLEMENTAR: Processar pagamento no sistema de pagamento
+    
+    console.log(`Processando pagamento para reserva ${id}:`, paymentData);
+    
+    // Simular resposta
+    return {
+        reservationId: parseInt(id),
+        paymentId: 'PAY' + Math.floor(Math.random() * 9000 + 1000),
+        status: 'paid',
+        ...paymentData
+    };
+}
+
+async function getFlightStatus(flightNumber, departureDate) {
+    // IMPLEMENTAR: Usar API Amadeus para status real do voo
+    
+    // Por enquanto, simular dados
+    const statuses = ['on-time', 'delayed', 'cancelled', 'boarding', 'departed'];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+    
+    return {
+        flightNumber: flightNumber,
+        date: departureDate,
+        status: status,
+        delay: status === 'delayed' ? Math.floor(Math.random() * 120) + 15 : null,
+        gate: status !== 'cancelled' ? Math.floor(Math.random() * 50) + 1 : null,
+        terminal: status !== 'cancelled' ? Math.floor(Math.random() * 3) + 1 : null,
+        lastUpdated: new Date().toISOString()
+    };
+}
+
+async function sendConfirmationEmail(reservationId) {
+    // IMPLEMENTAR: Enviar email usando serviço de email
+    
+    console.log(`Enviando email de confirmação para reserva ${reservationId}`);
+    
+    // Simular resposta
+    return {
+        reservationId: parseInt(reservationId),
+        emailSent: true,
+        sentAt: new Date().toISOString()
+    };
+}
+
+async function getPopularRoutes(period, limit) {
+    // DADOS FICTÍCIOS - Substituir por consulta real ao banco
+    
+    return [
+        { route: 'LIS-MAD', from: 'Lisboa', to: 'Madrid', bookings: 145, revenue: 89000 },
+        { route: 'OPO-PAR', from: 'Porto', to: 'Paris', bookings: 98, revenue: 78000 },
+        { route: 'LIS-LON', from: 'Lisboa', to: 'Londres', bookings: 87, revenue: 95000 },
+        { route: 'FAO-BCN', from: 'Faro', to: 'Barcelona', bookings: 76, revenue: 45000 },
+        { route: 'LIS-NYC', from: 'Lisboa', to: 'Nova York', bookings: 65, revenue: 125000 }
+    ].slice(0, limit);
+}
+
+async function getAirlinesStats(period) {
+    // DADOS FICTÍCIOS - Substituir por consulta real ao banco
+    
+    return [
+        { name: 'TAP', bookings: 234, revenue: 145000, percentage: 35 },
+        { name: 'Ryanair', bookings: 189, revenue: 98000, percentage: 28 },
+        { name: 'Lufthansa', bookings: 123, revenue: 156000, percentage: 18 },
+        { name: 'Air France', bookings: 87, revenue: 123000, percentage: 13 },
+        { name: 'Outros', bookings: 42, revenue: 56000, percentage: 6 }
+    ];
+}
+
+async function getFlightAlerts() {
+    // DADOS FICTÍCIOS - Substituir por integração real com APIs de voo
+    
+    return [
+        { 
+            flightNumber: 'TP1234', 
+            status: 'delayed', 
+            delay: 45, 
+            route: 'LIS-MAD',
+            affectedReservations: 12
+        },
+        { 
+            flightNumber: 'FR7892', 
+            status: 'cancelled', 
+            delay: null, 
+            route: 'OPO-PAR',
+            affectedReservations: 8
+        },
+        { 
+            flightNumber: 'LH4567', 
+            status: 'delayed', 
+            delay: 20, 
+            route: 'LIS-FRA',
+            affectedReservations: 5
+        }
+    ];
+}
+
+async function getPendingRefunds(limit) {
+    // DADOS FICTÍCIOS - Substituir por consulta real ao banco
+    
+    return [
+        { 
+            reservationId: 123,
+            bookingCode: 'MND789', 
+            passenger: 'Ana Silva', 
+            amount: 450, 
+            requestedDays: 3,
+            reason: 'Cancelamento de voo'
+        },
+        { 
+            reservationId: 456,
+            bookingCode: 'MND456', 
+            passenger: 'Carlos Santos', 
+            amount: 890, 
+            requestedDays: 7,
+            reason: 'Atraso superior a 3 horas'
+        },
+        { 
+            reservationId: 789,
+            bookingCode: 'MND123', 
+            passenger: 'Maria Costa', 
+            amount: 320, 
+            requestedDays: 2,
+            reason: 'Solicitação do cliente'
+        }
+    ].slice(0, limit);
+}
+
+async function processRefund(reservationId, refundData) {
+    // IMPLEMENTAR: Processar reembolso no sistema de pagamento
+    
+    console.log(`Processando reembolso para reserva ${reservationId}:`, refundData);
+    
+    // Simular resposta
+    return {
+        reservationId: parseInt(reservationId),
+        refundId: 'REF' + Math.floor(Math.random() * 9000 + 1000),
+        status: 'processed',
+        ...refundData
+    };
+}
+
+async function getAllReservationsForExport(filters) {
+    // IMPLEMENTAR: Buscar todas as reservas para exportação
+    
+    const mockReservations = generateMockReservationsData();
+    
+    // Aplicar filtros
+    let filteredReservations = mockReservations;
+    
+    if (filters.status !== 'all') {
+        filteredReservations = filteredReservations.filter(r => r.status === filters.status);
+    }
+    
+    if (filters.period !== 'all') {
+        // Implementar filtro por período
+    }
+    
+    return filteredReservations;
+}
+
+function convertReservationsToCSV(reservations) {
+    const headers = [
+        'Código', 'Passageiro', 'Email', 'Telefone', 'Voo', 'Rota', 
+        'Data Partida', 'Status', 'Pagamento', 'Valor Total', 'Data Reserva'
+    ];
+    
+    const csvContent = [
+        headers.join(','),
+        ...reservations.map(r => [
+            r.bookingCode,
+            `"${r.passenger}"`,
+            r.email,
+            r.phone,
+            r.flightNumber,
+            `"${r.route.from} → ${r.route.to}"`,
+            new Date(r.departureDate).toLocaleDateString('pt-BR'),
+            r.status,
+            r.paymentStatus,
+            r.totalAmount,
+            new Date(r.bookingDate).toLocaleDateString('pt-BR')
+        ].join(','))
+    ].join('\n');
+    
+    return csvContent;
+}
+
+async function refreshMultipleFlightStatus(flightNumbers) {
+    // IMPLEMENTAR: Atualizar status de múltiplos voos
+    
+    console.log('Atualizando status dos voos:', flightNumbers);
+    
+    const results = [];
+    
+    if (flightNumbers && flightNumbers.length > 0) {
+        for (const flightNumber of flightNumbers) {
+            try {
+                const status = await getFlightStatus(flightNumber, new Date());
+                results.push({ flightNumber, status, updated: true });
+            } catch (error) {
+                results.push({ flightNumber, error: error.message, updated: false });
+            }
+        }
+    } else {
+        // Se não especificados, atualizar todos os voos ativos
+        const activeFlights = ['TP1234', 'FR7892', 'LH4567', 'AF8901'];
+        for (const flightNumber of activeFlights) {
+            const status = await getFlightStatus(flightNumber, new Date());
+            results.push({ flightNumber, status, updated: true });
+        }
+    }
+    
+    return results;
+}
+
+function generateMockReservationsData() {
+    // Função para gerar dados fictícios - implementação similar à do frontend
+    // mas com mais detalhes para o backend
+    
+    const passengers = [
+        'Maria Silva', 'João Santos', 'Ana Costa', 'Pedro Lima', 'Sofia Mendes',
+        'Carlos Oliveira', 'Fernanda Rocha', 'Miguel Torres', 'Inês Ferreira', 'Rui Cardoso'
+    ];
+
+    const routes = [
+        { from: 'LIS', to: 'MAD', fromName: 'Lisboa', toName: 'Madrid' },
+        { from: 'OPO', to: 'PAR', fromName: 'Porto', toName: 'Paris' },
+        { from: 'LIS', to: 'LON', fromName: 'Lisboa', toName: 'Londres' },
+        { from: 'FAO', to: 'BCN', fromName: 'Faro', toName: 'Barcelona' },
+        { from: 'LIS', to: 'NYC', fromName: 'Lisboa', toName: 'Nova York' }
+    ];
+
+    const airlines = ['TP', 'FR', 'LH', 'AF', 'BA'];
+    const statuses = ['confirmed', 'pending', 'cancelled', 'refunded'];
+    const paymentStatuses = ['paid', 'pending', 'failed', 'refunded'];
+    
+    const reservations = [];
+    
+    for (let i = 0; i < 100; i++) {
+        const passenger = passengers[Math.floor(Math.random() * passengers.length)];
+        const route = routes[Math.floor(Math.random() * routes.length)];
+        const airline = airlines[Math.floor(Math.random() * airlines.length)];
+        const status = statuses[Math.floor(Math.random() * statuses.length)];
+        const paymentStatus = paymentStatuses[Math.floor(Math.random() * paymentStatuses.length)];
+        
+        const bookingDate = new Date(Date.now() - Math.random() * 60 * 24 * 60 * 60 * 1000);
+        const departureDate = new Date(bookingDate.getTime() + Math.random() * 90 * 24 * 60 * 60 * 1000);
+        
+        const totalAmount = Math.floor(Math.random() * 1500) + 200;
+        
+        reservations.push({
+            id: i + 1,
+            bookingCode: 'MND' + (1000 + i).toString(),
+            passenger: passenger,
+            email: passenger.toLowerCase().replace(/ /g, '.') + '@email.com',
+            phone: '+351 9' + Math.floor(Math.random() * 90000000 + 10000000),
+            route: route,
+            flightNumber: airline + Math.floor(Math.random() * 9000 + 1000),
+            airline: airline,
+            departureDate: departureDate,
+            arrivalDate: new Date(departureDate.getTime() + (Math.random() * 12 + 2) * 60 * 60 * 1000),
+            bookingDate: bookingDate,
+            status: status,
+            paymentStatus: paymentStatus,
+            totalAmount: totalAmount,
+            taxes: Math.floor(totalAmount * 0.15),
+            passengers: Math.floor(Math.random() * 4) + 1,
+            baggage: Math.random() > 0.5,
+            checkinStatus: Math.random() > 0.6 ? 'completed' : 'pending',
+            lastUpdate: new Date()
+        });
+    }
+    
+    return reservations.sort((a, b) => b.bookingDate - a.bookingDate);
+}
 // ====================================
 // INICIALIZAÇÃO DO SERVIDOR
 // ====================================

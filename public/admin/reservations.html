@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Reservas - FlightsMND</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script> -->
+     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="stylesheet" href="/admin/css/dashboard.css">
+    <link rel="stylesheet" href="/admin/css/reservations.css">
+</head>
+<body>
+    <div class="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50">
+        <!-- Navigation Header -->
+        <nav class="bg-white shadow-lg border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-8">
+                        <h1 class="text-2xl font-bold text-gray-900">FlightsMND Admin</h1>
+                        <div class="flex space-x-6">
+                            <a href="index.html" class="nav-link">
+                                <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                                <span>Dashboard</span>
+                            </a>
+                            <a href="users.html" class="nav-link">
+                                <i data-lucide="users" class="w-5 h-5"></i>
+                                <span>Usuários</span>
+                            </a>
+                            <a href="reservations.html" class="nav-link active">
+                                <i data-lucide="plane" class="w-5 h-5"></i>
+                                <span>Reservas</span>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <i data-lucide="bell" class="w-6 h-6 text-gray-600 cursor-pointer"></i>
+                            <span class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">7</span>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            <i data-lucide="calendar" class="w-4 h-4 inline mr-1"></i>
+                            <span id="currentDate"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto p-6">
+            <!-- Page Header -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-4xl font-bold text-gray-900 mb-2">Gestão de Reservas</h2>
+                        <p class="text-gray-600 text-lg">
+                            Monitoramento e controle de todas as reservas da plataforma
+                        </p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button class="btn btn-secondary" onclick="exportReservations()">
+                            <i data-lucide="download" class="w-5 h-5 mr-2"></i>
+                            Exportar
+                        </button>
+                        <button class="btn btn-success" onclick="refreshFlightStatus()">
+                            <i data-lucide="refresh-cw" class="w-5 h-5 mr-2"></i>
+                            Atualizar Status
+                        </button>
+                        <button class="btn btn-primary" onclick="showCreateReservationModal()">
+                            <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                            Nova Reserva
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="text-center py-12">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p class="text-gray-600">Carregando dados das reservas...</p>
+            </div>
+
+            <!-- Main Content -->
+            <div id="reservationsContent" class="hidden">
+                <!-- Reservation Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-600">
+                                <i data-lucide="calendar-check" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge bg-green-100 text-green-700">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>15.2%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Reservas Hoje</h3>
+                        <p id="todayReservations" class="text-3xl font-bold text-gray-900">0</p>
+                        <p class="text-xs text-gray-500 mt-1">confirmadas</p>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-600">
+                                <i data-lucide="clock" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge bg-orange-100 text-orange-700">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>8.7%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Pagamentos Pendentes</h3>
+                        <p id="pendingPayments" class="text-3xl font-bold text-gray-900">0</p>
+                        <p class="text-xs text-gray-500 mt-1">aguardando</p>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-red-500 to-pink-600">
+                                <i data-lucide="x-circle" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge bg-red-100 text-red-700">
+                                <i data-lucide="trending-down" class="w-4 h-4 inline mr-1"></i>
+                                <span>2.1%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Cancelamentos</h3>
+                        <p id="cancellations" class="text-3xl font-bold text-gray-900">0</p>
+                        <p class="text-xs text-gray-500 mt-1">últimos 7 dias</p>
+                    </div>
+
+                    <div class="metric-card">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-violet-600">
+                                <i data-lucide="dollar-sign" class="w-6 h-6 text-white"></i>
+                            </div>
+                            <div class="growth-badge bg-green-100 text-green-700">
+                                <i data-lucide="trending-up" class="w-4 h-4 inline mr-1"></i>
+                                <span>12.5%</span>
+                            </div>
+                        </div>
+                        <h3 class="text-gray-600 text-sm font-medium mb-2">Receita de Reservas</h3>
+                        <p id="reservationsRevenue" class="text-3xl font-bold text-gray-900">0 MT</p>
+                        <p class="text-xs text-gray-500 mt-1">últimos 30 dias</p>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <!-- Popular Routes Chart -->
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Rotas Mais Populares</h3>
+                        <canvas id="popularRoutesChart" width="400" height="200"></canvas>
+                    </div>
+
+                    <!-- Airlines Distribution -->
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-900 mb-6">Reservas por Companhia</h3>
+                        <canvas id="airlinesChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">Status das Reservas</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
+                                    <span class="text-sm text-gray-600">Confirmadas</span>
+                                </div>
+                                <span id="confirmedCount" class="font-semibold text-gray-900">0</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 bg-orange-500 rounded-full mr-3"></div>
+                                    <span class="text-sm text-gray-600">Pendentes</span>
+                                </div>
+                                <span id="pendingCount" class="font-semibold text-gray-900">0</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 bg-red-500 rounded-full mr-3"></div>
+                                    <span class="text-sm text-gray-600">Canceladas</span>
+                                </div>
+                                <span id="cancelledCount" class="font-semibold text-gray-900">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">Alertas de Voos</h3>
+                        <div id="flightAlerts" class="space-y-3">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                        <h3 class="text-lg font-bold text-gray-900 mb-4">Reembolsos Pendentes</h3>
+                        <div id="pendingRefunds" class="space-y-3">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reservations Table Section -->
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-100">
+                    <div class="p-6 border-b border-gray-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-xl font-bold text-gray-900">Lista de Reservas</h3>
+                            <div class="flex items-center space-x-4">
+                                <div class="relative">
+                                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                                    <input 
+                                        type="text" 
+                                        id="searchReservations" 
+                                        placeholder="Buscar por código, passageiro..."
+                                        class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    >
+                                </div>
+                                <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="all">Todos Status</option>
+                                    <option value="confirmed">Confirmada</option>
+                                    <option value="pending">Pendente</option>
+                                    <option value="cancelled">Cancelada</option>
+                                    <option value="refunded">Reembolsada</option>
+                                </select>
+                                <select id="periodFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="all">Todos Períodos</option>
+                                    <option value="today">Hoje</option>
+                                    <option value="week">Esta Semana</option>
+                                    <option value="month">Este Mês</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <input type="checkbox" id="selectAllReservations" class="rounded border-gray-300">
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortReservations('bookingCode')">
+                                        Código de Reserva
+                                        <i data-lucide="chevron-up-down" class="w-4 h-4 inline ml-1"></i>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Passageiro</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rota</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortReservations('departureDate')">
+                                        Data do Voo
+                                        <i data-lucide="chevron-up-down" class="w-4 h-4 inline ml-1"></i>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer" onclick="sortReservations('totalAmount')">
+                                        Valor
+                                        <i data-lucide="chevron-up-down" class="w-4 h-4 inline ml-1"></i>
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pagamento</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reservationsTableBody" class="bg-white divide-y divide-gray-200">
+                                <!-- Will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="px-6 py-4 border-t border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-gray-500">
+                                Mostrando <span id="showingFromRes">1</span> a <span id="showingToRes">10</span> de <span id="totalReservations">0</span> reservas
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button id="prevPageRes" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50" disabled>
+                                    Anterior
+                                </button>
+                                <div id="pageNumbersRes" class="flex space-x-1">
+                                    <!-- Page numbers will be generated here -->
+                                </div>
+                                <button id="nextPageRes" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                    Próximo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reservation Detail Modal -->
+    <div id="reservationDetailModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl max-w-6xl w-full max-h-screen overflow-y-auto">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-2xl font-bold text-gray-900">Detalhes da Reserva</h3>
+                        <button onclick="closeReservationDetailModal()" class="text-gray-400 hover:text-gray-600">
+                            <i data-lucide="x" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="reservationDetailContent" class="p-6">
+                    <!-- Reservation details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Processing Modal -->
+    <div id="paymentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl max-w-2xl w-full">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-2xl font-bold text-gray-900">Processar Pagamento</h3>
+                        <button onclick="closePaymentModal()" class="text-gray-400 hover:text-gray-600">
+                            <i data-lucide="x" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="paymentContent" class="p-6">
+                    <!-- Payment processing form will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flight Status Modal -->
+    <div id="flightStatusModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl max-w-3xl w-full">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-2xl font-bold text-gray-900">Status do Voo</h3>
+                        <button onclick="closeFlightStatusModal()" class="text-gray-400 hover:text-gray-600">
+                            <i data-lucide="x" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+                <div id="flightStatusContent" class="p-6">
+                    <!-- Flight status details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/admin/js/reservations.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
