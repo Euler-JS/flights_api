@@ -109,6 +109,7 @@ app.get('/api/health', async (req, res) => {
                     ? 'Verifique as credenciais Amadeus no Vercel'
                     : 'Erro de conexão'
             },
+            
             amadeus: {
                 connected: false,
                 environment: process.env.NODE_ENV === 'production' ? 'production' : 'test',
