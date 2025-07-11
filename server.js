@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('rate-limiter-flexible');
 const Amadeus = require('amadeus');
+const { hostname } = require('os');
 require('dotenv').config();
 
 const app = express();
@@ -20,9 +21,8 @@ app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
 const amadeus = new Amadeus({
     clientId: process.env.AMADEUS_CLIENT_ID,
     clientSecret: process.env.AMADEUS_CLIENT_SECRET,
-    hostname: process.env.NODE_ENV === 'production' 
-        ? 'production' 
-        : 'test' // Ambiente de teste
+    hostname: 'test' // Ambiente de teste
+    // hostname: 'production' // Ambiente de produção
 });
 
 // ====================================
@@ -98,7 +98,8 @@ app.get('/api/health', async (req, res) => {
             message: 'Backend online e conectado à Amadeus',
             amadeus: {
                 connected: true,
-                environment: process.env.NODE_ENV === 'production' ? 'production' : 'test',
+                // environment: process.env.NODE_ENV === 'production' ? 'production' : 'test',
+                environment:'test',
                 testResults: testResponse.data.length + ' aeroportos encontrados'
             },
             frontend: process.env.FRONTEND_URL,
@@ -121,7 +122,8 @@ app.get('/api/health', async (req, res) => {
 
             amadeus: {
                 connected: false,
-                environment: process.env.NODE_ENV === 'production' ? 'production' : 'test',
+                // environment: process.env.NODE_ENV === 'production' ? 'production' : 'test',
+                environment: 'test',
                 clientId: process.env.AMADEUS_CLIENT_ID?.substring(0, 8) + '...'
             },
             timestamp: new Date().toISOString()
