@@ -31,7 +31,7 @@ const amadeus = new Amadeus({
 console.log('Inicializando middlewares...', process.env.FRONTEND_URL); ;
 app.use(helmet());
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || 'https://flights-mnd.vercel.app',
     credentials: true
 }));
 app.use(express.json());
