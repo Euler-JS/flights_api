@@ -1,4 +1,33 @@
 {
+  "name": "restaurant-menu-api",
+  "version": "2.0.0",
+  "description": "Restaurant Menu Management API with User Management and Authentication",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "build": "echo 'Build completed successfully'",
+    "vercel-build": "echo 'Vercel build completed'",
+    "test": "echo 'Tests would go here'",
+    "lint": "echo 'Linting would go here'",
+    "setup:db": "node scripts/setupDatabase.js",
+    "seed:admin": "node scripts/seedAdmin.js"
+  },
+"keywords": [
+    "restaurant",
+    "menu",
+    "api",
+    "nodejs",
+    "express",
+    "supabase",
+    "authentication",
+    "user-management",
+    "jwt",
+    "bcrypt"
+  ],
+   "author": "Joao Muchunja",
+  "license": "MIT",
+
   "dependencies": {
     "amadeus": "^8.1.0",
     "cors": "^2.8.5",
@@ -6,5 +35,12 @@
     "express": "^4.21.2",
     "helmet": "^6.2.0",
     "rate-limiter-flexible": "^2.4.2"
+  },
+   "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": "18.x",
+    "npm": ">=8.0.0"
   }
 }
