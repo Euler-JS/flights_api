@@ -65,18 +65,18 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', 'https://flights-mnd.vercel.app');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    res.header('Access-Control-Allow-Credentials', 'true');
+// app.use((req, res, next) => {
+//     res.header('Access-Control-Allow-Origin', 'https://flights-mnd.vercel.app');
+//     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+//     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+//     res.header('Access-Control-Allow-Credentials', 'true');
     
-    if (req.method === 'OPTIONS') {
-        res.sendStatus(200);
-    } else {
-        next();
-    }
-});
+//     if (req.method === 'OPTIONS') {
+//         res.sendStatus(200);
+//     } else {
+//         next();
+//     }
+// });
 
 // Rate limiting
 const rateLimiter = new rateLimit.RateLimiterMemory({
