@@ -30,18 +30,27 @@ const amadeus = new Amadeus({
 // ====================================
 console.log('Inicializando middlewares...', process.env.FRONTEND_URL); ;
 app.use(helmet());
+// app.use(cors({
+//      origin: [
+//         'https://flights-mnd.vercel.app',
+//         // process.env.FRONTEND_URL,
+//         // Para desenvolvimento local (se necessário)
+//         'http://localhost:3000',
+//         'http://localhost:3001',
+//         'http://localhost:5500',
+//         'http://127.0.0.1:5500'
+//     ],
+//     credentials: true,
+//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+//     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+// }));
 app.use(cors({
-     origin: [
-        'https://flights-mnd.vercel.app',
-        process.env.FRONTEND_URL,
-        // Para desenvolvimento local (se necessário)
-        'http://localhost:3000',
-        'http://localhost:3001'
-    ],
-    credentials: true,
+    origin: '*', // Permite QUALQUER origem
+    credentials: false, // Desabilitar credentials com origem *
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -109,7 +118,7 @@ app.get('/api/health', async (req, res) => {
                     ? 'Verifique as credenciais Amadeus no Vercel'
                     : 'Erro de conexão'
             },
-            
+
             amadeus: {
                 connected: false,
                 environment: process.env.NODE_ENV === 'production' ? 'production' : 'test',
